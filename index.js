@@ -11,6 +11,21 @@ const { fromBuffer } = require('file-type');
 const app = express();
 const port = process.env.PORT || 8080;
 
+async function uploadToTelegraph(buffer) {
+    const { ext } = await fromBuffer(buffer); // شناسایی فرمت فایل
+    const form = new FormData();
+    form.append('file', buffer, `file.${ext}`); // افزودن فایل به فرم
+
+    const response = await fetch('https://telegra.ph/upload', {
+        method: 'POST',
+        body: form
+    });
+
+    const result = await response.json();
+
+    if (result.error) throw new Error(result.error); // بررسی خطا
+    return `https://telegra.ph${result[0].src}`; // لینک تصویر آپلود شده
+}
 // تعریف فونت‌ها
 const fontStyles = {
     Bold: text => text.toUpperCase(),
@@ -70,7 +85,6 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 });
 
-// API: ایجاد QR Code و ارسال به سرور آپلود
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
     if (!text) {
@@ -80,34 +94,23 @@ app.get('/api/maker/qrcode', async (req, res) => {
     try {
         // ایجاد QR Code
         const qrCodeImage = await QRCode.toBuffer(text);
-        
-        // ارسال تصویر به سرور آپلود
-        const { ext } = await fromBuffer(qrCodeImage); // تشخیص نوع فایل از روی محتوا
-        let form = new FormData();
-        form.append('file', qrCodeImage, 'tmp.' + ext);
 
-        // ارسال به API سرور آپلود
-        let resUpload = await fetch('https://api.shannmoderz.xyz/server/upload', {
-            method: 'POST',
-            body: form
-        });
-
-        let img = await resUpload.json();
-
-        if (img.error) {
-            throw img.error;
-        }
+        // آپلود تصویر به Telegra.ph
+        const uploadedUrl = await uploadToTelegraph(qrCodeImage);
 
         res.json({
             status: true,
             creator: 'nothing',
             result: {
-                download_url: 'https://api.shannmoderz.xyz/server/file' + img[0].src
-            }
+                download_url: uploadedUrl
+            },
         });
-
     } catch (err) {
-        res.status(500).json({ status: false, message: 'Error generating or uploading QR code', error: err.message });
+        res.status(500).json({
+            status: false,
+            message: 'Error generating or uploading QR code',
+            error: err.message
+        });
     }
 });
 
