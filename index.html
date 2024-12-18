@@ -5,77 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(to right, #6a11cb, #2575fc);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-
-        .menu-icon {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            cursor: pointer;
-        }
-
-        .menu-icon div {
-            width: 30px;
-            height: 4px;
-            background: white;
-            margin: 6px 0;
-            border-radius: 2px;
-        }
-
-        .menu {
-            position: absolute;
-            top: 60px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .menu a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 10px 0;
-        }
-
-        .menu a:hover {
-            text-decoration: underline;
-        }
-
-        .content {
-            text-align: center;
-        }
-
-        .content h1 {
-            margin-bottom: 20px;
-        }
-
-        .info-box {
-            margin: 10px 0;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            font-size: 18px;
-        }
-
-        footer {
-            position: absolute;
-            bottom: 20px;
-            color: white;
-        }
+        /* استایل‌های شما */
     </style>
 </head>
 <body>
@@ -129,12 +59,10 @@
             battery.addEventListener('levelchange', updateBattery);
         });
 
-        // جستجوی یوتیوب
+        // جستجوی یوتیوب به‌صورت اتوماتیک
         function searchYT() {
-            const query = prompt('Enter your search query for YouTube:');
-            if (query) {
-                window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
-            }
+            const query = 'Radhe Title Track';  // متن جستجو به‌طور ثابت
+            window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
         }
     </script>
 </body>
