@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Nothing Api</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .menu-icon {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            cursor: pointer;
+        }
+
+        .menu-icon div {
+            width: 30px;
+            height: 4px;
+            background: white;
+            margin: 6px 0;
+            border-radius: 2px;
+        }
+
+        .menu {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .menu a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 0;
+            font-size: 16px;
+        }
+
+        .menu a:hover {
+            text-decoration: underline;
+        }
+
+        .content {
+            text-align: center;
+        }
+
+        .content h1 {
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            margin: 10px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 18px;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- آیکون منو -->
+    <div class="menu-icon" onclick="toggleMenu()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+
+    <!-- منوی کشویی -->
+    <div class="menu" id="menu">
+        <a href="/api/maker/font-txt?text=Hello" target="_blank">Maker font API</a>
+        <a href="javascript:searchYT()">YouTube Search API</a>
+    </div>
+
+    <!-- محتوای اصلی -->
+    <div class="content">
+        <h1>Dashboard</h1>
+        <div class="info-box" id="time">Time: --:--:--</div>
+        <div class="info-box" id="date">Date: --/--/----</div>
+        <div class="info-box" id="battery">Battery: --%</div>
+    </div>
+
+    <footer>Powered by Nothing</footer>
+
+    <script>
+        // نمایش و مخفی کردن منو
+        function toggleMenu() {
+            const menu = document.getElementById('menu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // به‌روزرسانی زمان
+        function updateTime() {
+            const now = new Date();
+            const time = now.toLocaleTimeString();
+            const date = now.toLocaleDateString();
+            document.getElementById('time').textContent = `Time: ${time}`;
+            document.getElementById('date').textContent = `Date: ${date}`;
+        }
+        setInterval(updateTime, 1000);
+
+        // گرفتن وضعیت باتری
+        navigator.getBattery().then(battery => {
+            function updateBattery() {
+                const level = Math.round(battery.level * 100);
+                document.getElementById('battery').textContent = `Battery: ${level}%`;
+            }
+            updateBattery();
+            battery.addEventListener('levelchange', updateBattery);
+        });
+
+        // جستجوی یوتیوب
+        function searchYT() {
+            const query = prompt('Enter your search query for YouTube:');
+            if (query) {
+                window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
+            }
+        }
+    </script>
+</body>
+</html>
