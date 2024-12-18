@@ -88,7 +88,7 @@
 
     <!-- منوی کشویی -->
     <div class="menu" id="menu">
-        <a href="/api/font?text=Hello" target="_blank">Font API</a>
+        <a href="/api/maker/font-txt?text=Hello" target="_blank">Font API</a>
         <a href="javascript:searchYT()">YouTube Search API</a>
     </div>
 
@@ -133,7 +133,7 @@
         function searchYT() {
             const query = prompt('Enter your search query for YouTube:');
             if (query) {
-                window.location.href = `/api/download/ytsearch?text=${encodeURIComponent(query)}`;
+                window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
             }
         }
     </script>
