@@ -31,7 +31,6 @@ app.get('/api/maker/font-txt', (req, res) => {
     });
 });
 
-// API: جستجو در YouTube
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
@@ -41,17 +40,16 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     try {
         const results = await ytSearch(query);
         const videos = results.videos
-            .sort((a, b) => b.views - a.views) // Sort by views (descending)
-            .slice(0, 5) // Get the top 5 results
-            .map(video => ({
-                title: video.title,
-                link: video.url,
-                thumbnail: video.thumbnail,
-                views: video.views,
-                duration: video.duration // The duration of the video
-                uploadDate: video.uploaded, // The upload date of the video
-                uploadedBy: video.author.name,
-            }));
+    .sort((a, b) => b.views - a.views) // مرتب کردن بر اساس بازدید (نزولی)
+    .slice(0, 5) // گرفتن ۵ نتیجه اول
+    .map(video => ({
+        title: video.title,
+        link: video.url,
+        thumbnail: video.thumbnail,
+        views: video.views,
+        uploadedBy: video.author.name
+        deurition: video.deurition,
+    }));
 
         res.json({
             status: true,
@@ -62,7 +60,6 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         res.status(500).json({ status: false, message: 'Error fetching YouTube data', error: err.message });
     }
 });
-
 // ارائه فایل HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
