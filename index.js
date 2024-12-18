@@ -13,7 +13,7 @@ const fontStyles = {
 };
 
 // API: تبدیل متن به فونت
-app.get('/api/font', (req, res) => {
+app.get('/api/maker/font-txt', (req, res) => {
     const text = req.query.text;
     if (!text) {
         return res.status(400).json({ status: false, message: 'No text provided' });
@@ -32,7 +32,7 @@ app.get('/api/font', (req, res) => {
 });
 
 // API: جستجو در YouTube
-app.get('/api/download/ytsearch', async (req, res) => {
+app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
         return res.status(400).json({ status: false, message: 'No search query provided' });
@@ -40,13 +40,16 @@ app.get('/api/download/ytsearch', async (req, res) => {
 
     try {
         const results = await ytSearch(query);
-        const videos = results.videos.slice(0, 5).map(video => ({
-            title: video.title,
-            link: video.url,
-            thumbnail: video.thumbnail,
-            views: video.views,
-            uploadedBy: video.author.name
-        }));
+        const videos = results.videos
+    .sort((a, b) => b.views - a.views) // مرتب کردن بر اساس بازدید (نزولی)
+    .slice(0, 5) // گرفتن ۵ نتیجه اول
+    .map(video => ({
+        title: video.title,
+        link: video.url,
+        thumbnail: video.thumbnail,
+        views: video.views,
+        uploadedBy: video.author.name
+    }));
 
         res.json({
             status: true,
