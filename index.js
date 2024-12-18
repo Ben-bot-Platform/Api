@@ -48,19 +48,11 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
                 url: video.url,
                 title: video.title,
                 description: video.description || "",
-                image: video.thumbnail,
                 thumbnail: video.thumbnail,
-                seconds: video.seconds || 0,
                 timestamp: video.duration.timestamp || "0:00",
-                duration: {
-                    seconds: video.seconds || 0,
-                    timestamp: video.duration.timestamp || "0:00"
-                },
                 ago: video.ago || "",
                 views: video.views,
-                author: {
-                    name: video.author.name,
-                    url: video.author.url
+                author: video.author.name,
                 }
             }));
 
