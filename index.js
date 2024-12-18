@@ -1,6 +1,10 @@
 const express = require('express');
 const path = require('path');
 const ytSearch = require('yt-search');
+const QRCode = require('qrcode');
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -31,7 +35,7 @@ app.get('/api/maker/font-txt', (req, res) => {
     });
 });
 
-
+// API: جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
@@ -63,6 +67,51 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         res.status(500).json({ status: false, message: 'Error fetching YouTube data', error: err.message });
     }
 });
+
+// API: ایجاد QR Code و ارسال به Catbox.moe
+app.get('/api/maker/qrcode', async (req, res) => {
+    const text = req.query.text;
+    if (!text) {
+        return res.status(400).json({ status: false, message: 'No text provided' });
+    }
+
+    try {
+        // ایجاد QR Code
+        const qrCodeImage = await QRCode.toBuffer(text);
+        
+        // ذخیره موقت تصویر در فایل
+        const filePath = path.join(__dirname, 'qrcode.png');
+        fs.writeFileSync(filePath, qrCodeImage);
+
+        // ارسال تصویر به Catbox.moe
+        const form = new FormData();
+        form.append('file', fs.createReadStream(filePath));
+
+        const catboxResponse = await axios.post('https://catbox.moe/user/api.php', form, {
+            headers: {
+                ...form.getHeaders(),
+            },
+        });
+
+        // حذف فایل موقت بعد از ارسال
+        fs.unlinkSync(filePath);
+
+        if (catboxResponse.data && catboxResponse.data.files) {
+            res.json({
+                status: true,
+                creator: 'nothing',
+                result: {
+                    download_url: `https://catbox.moe/${catboxResponse.data.files[0].id}`,
+                },
+            });
+        } else {
+            res.status(500).json({ status: false, message: 'Failed to upload QR code to Catbox.moe' });
+        }
+    } catch (err) {
+        res.status(500).json({ status: false, message: 'Error generating or uploading QR code', error: err.message });
+    }
+});
+
 // ارائه فایل HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
