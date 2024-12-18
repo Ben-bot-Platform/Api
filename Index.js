@@ -1,19 +1,20 @@
 const express = require('express');
 const path = require('path');
 const ytSearch = require('yt-search');
-const app = express();
-const port = 8080;
 
-// فونت‌ها
+const app = express();
+const port = process.env.PORT || 8080;
+
+// تعریف فونت‌ها
 const fontStyles = {
-    "Bold": text => text.toUpperCase(),
-    "Italic": text => text.split('').map(c => c + '̶').join(''),
-    "Fancy": text => text.split('').map(c => '✦' + c + '✦').join('')
+    Bold: text => text.toUpperCase(),
+    Italic: text => text.split('').map(c => c + '̶').join(''),
+    Fancy: text => text.split('').map(c => '✦' + c + '✦').join('')
 };
 
-// مسیر API: تبدیل متن به فونت
-app.get('/api/maker/font-txt', (req, res) => {
-    const text = req.query.text; // دریافت متن از پارامتر "text"
+// API: تبدیل متن به فونت
+app.get('/api/font', (req, res) => {
+    const text = req.query.text;
     if (!text) {
         return res.status(400).json({ status: false, message: 'No text provided' });
     }
@@ -30,9 +31,9 @@ app.get('/api/maker/font-txt', (req, res) => {
     });
 });
 
-// مسیر API: جستجو در YouTube
-app.get('/api/downloader/ytsearch', async (req, res) => {
-    const query = req.query.text; // دریافت متن از پارامتر "text"
+// API: جستجو در YouTube
+app.get('/api/download/ytsearch', async (req, res) => {
+    const query = req.query.text;
     if (!query) {
         return res.status(400).json({ status: false, message: 'No search query provided' });
     }
