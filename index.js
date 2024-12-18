@@ -40,20 +40,36 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     try {
         const results = await ytSearch(query);
         const videos = results.videos
-    .sort((a, b) => b.views - a.views) // مرتب کردن بر اساس بازدید (نزولی)
-    .slice(0, 5) // گرفتن ۵ نتیجه اول
-    .map(video => ({
-        title: video.title,
-        link: video.url,
-        thumbnail: video.thumbnail,
-        views: video.views,
-        uploadedBy: video.author.name
-    }));
+            .sort((a, b) => b.views - a.views) // Sort by views (descending)
+            .slice(0, 5) // Get the top 5 results
+            .map(video => ({
+                type: "video",
+                videoId: video.videoId,
+                url: video.url,
+                title: video.title,
+                description: video.description || "",
+                image: video.thumbnail,
+                thumbnail: video.thumbnail,
+                seconds: video.seconds || 0,
+                timestamp: video.duration.timestamp || "0:00",
+                duration: {
+                    seconds: video.seconds || 0,
+                    timestamp: video.duration.timestamp || "0:00"
+                },
+                ago: video.ago || "",
+                views: video.views,
+                author: {
+                    name: video.author.name,
+                    url: video.author.url
+                }
+            }));
 
         res.json({
             status: true,
             creator: 'nothing',
-            data: videos
+            result: {
+                all: videos
+            }
         });
     } catch (err) {
         res.status(500).json({ status: false, message: 'Error fetching YouTube data', error: err.message });
