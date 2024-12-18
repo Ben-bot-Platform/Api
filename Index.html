@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Nothing Api</title>
+    <title>Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,7 +16,6 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
-            overflow: hidden;
         }
 
         .menu-icon {
@@ -50,7 +49,6 @@
             color: white;
             text-decoration: none;
             padding: 10px 0;
-            font-size: 16px;
         }
 
         .menu a:hover {
@@ -90,7 +88,7 @@
 
     <!-- منوی کشویی -->
     <div class="menu" id="menu">
-        <a href="/api/maker/font-txt?text=Hello" target="_blank">Maker font API</a>
+        <a href="/api/font?text=Hello" target="_blank">Font API</a>
         <a href="javascript:searchYT()">YouTube Search API</a>
     </div>
 
@@ -135,7 +133,7 @@
         function searchYT() {
             const query = prompt('Enter your search query for YouTube:');
             if (query) {
-                window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
+                window.location.href = `/api/download/ytsearch?text=${encodeURIComponent(query)}`;
             }
         }
     </script>
