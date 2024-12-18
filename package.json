@@ -1,12 +1,13 @@
 {
-  "name": "nothing-apu",
+  "name": "api-dashboard",
   "version": "1.0.0",
-  "description": "nothing api",
+  "description": "Dashboard with API functionalities",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "yt-search": "^2.10.7"
   }
 }
