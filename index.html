@@ -5,6 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .menu-icon {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            cursor: pointer;
+        }
+
+        .menu-icon div {
+            width: 30px;
+            height: 4px;
+            background: white;
+            margin: 6px 0;
+            border-radius: 2px;
+        }
+
+        .menu {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .menu a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 0;
+        }
+
+        .menu a:hover {
+            text-decoration: underline;
+        }
+
+        .content {
+            text-align: center;
+        }
+
+        .content h1 {
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            margin: 10px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 18px;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 20px;
+            color: white;
+        }
+
+        .submenu {
+            padding-left: 20px;
+            display: none;
+        }
+
+        .submenu a {
+            font-size: 14px;
+            padding: 5px 0;
+        }
+
+        .menu a.active + .submenu {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -17,16 +102,35 @@
 
     <!-- منوی کشویی -->
     <div class="menu" id="menu">
-        <a href="/api/maker/font-txt?text=Hello" target="_blank">Font API</a>
-        <a href="javascript:searchYT()">YouTube Search API</a>
+        <a href="javascript:void(0)" onclick="toggleSubMenu('downloadMenu')">Download Menu</a>
+        <div class="submenu" id="downloadMenu">
+            <a href="/api/downloader/ytsearch?text=Radhe Title Track" target="_blank">YouTube Search</a>
+        </div>
+
+        <a href="javascript:void(0)" onclick="toggleSubMenu('makerMenu')">Maker Menu</a>
+        <div class="submenu" id="makerMenu">
+            <a href="/api/maker/font-txt?text=Hello" target="_blank">Text Font</a>
+        </div>
+
+        <a href="javascript:void(0)" onclick="toggleSubMenu('searchMenu')">Search Menu</a>
+        <div class="submenu" id="searchMenu">
+            <a href="javascript:searchYT()">YouTube Search Default</a>
+        </div>
+
+        <a href="javascript:void(0)" onclick="toggleSubMenu('stalkMenu')">Stalk Menu</a>
+        <div class="submenu" id="stalkMenu">
+            <a href="#">Option 1</a>
+            <a href="#">Option 2</a>
+        </div>
     </div>
 
     <!-- محتوای اصلی -->
     <div class="content">
-        <h1>Dashboard</h1>
+        <h1>NOTHING API ENDPOINT</h1>
         <div class="info-box" id="time">Time: --:--:--</div>
         <div class="info-box" id="date">Date: --/--/----</div>
         <div class="info-box" id="battery">Battery: --%</div>
+        <div class="info-box" id="dayOfWeek">Day: Loading...</div>
     </div>
 
     <footer>2024 © Powered by Nothing</footer>
@@ -36,6 +140,12 @@
         function toggleMenu() {
             const menu = document.getElementById('menu');
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // فعال کردن و غیرفعال کردن منوهای فرعی
+        function toggleSubMenu(menuId) {
+            const submenu = document.getElementById(menuId);
+            submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
         }
 
         // به‌روزرسانی زمان
@@ -63,6 +173,29 @@
             const query = 'Radhe Title Track';  // متن جستجو به‌طور ثابت
             window.location.href = `/api/downloader/ytsearch?text=${encodeURIComponent(query)}`;
         }
+
+        // بروزرسانی روز هفته با پیام‌های جذاب
+        function updateDayOfWeek() {
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const messages = {
+                Sunday: "Relax and recharge, it's Sunday!",
+                Monday: "New week, new goals. Happy Monday!",
+                Tuesday: "Keep going strong, it's Tuesday!",
+                Wednesday: "Halfway there! Enjoy your Wednesday.",
+                Thursday: "Almost there, hang tight! Happy Thursday!",
+                Friday: "Weekend vibes! Happy Friday!",
+                Saturday: "Fun day ahead! Enjoy your Saturday."
+            };
+
+            const today = new Date();
+            const dayName = days[today.getDay()];
+            const message = messages[dayName];
+
+            document.getElementById('dayOfWeek').textContent = `Day: ${dayName} - ${message}`;
+        }
+
+        // فراخوانی تابع در هنگام بارگذاری صفحه
+        updateDayOfWeek();
     </script>
 </body>
 </html>
