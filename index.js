@@ -5,6 +5,8 @@ const QRCode = require('qrcode');
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const fetch = require('node-fetch');
+const { fromBuffer } = require('file-type');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -68,7 +70,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 });
 
-// API: ایجاد QR Code و ارسال به Catbox.moe
+// API: ایجاد QR Code و ارسال به سرور آپلود
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
     if (!text) {
@@ -79,34 +81,31 @@ app.get('/api/maker/qrcode', async (req, res) => {
         // ایجاد QR Code
         const qrCodeImage = await QRCode.toBuffer(text);
         
-        // ذخیره موقت تصویر در فایل
-        const filePath = path.join(__dirname, 'qrcode.png');
-        fs.writeFileSync(filePath, qrCodeImage);
+        // ارسال تصویر به سرور آپلود
+        const { ext } = await fromBuffer(qrCodeImage); // تشخیص نوع فایل از روی محتوا
+        let form = new FormData();
+        form.append('file', qrCodeImage, 'tmp.' + ext);
 
-        // ارسال تصویر به Catbox.moe
-        const form = new FormData();
-        form.append('file', fs.createReadStream(filePath));
-
-        const catboxResponse = await axios.post('https://catbox.moe/user/api.php', form, {
-            headers: {
-                ...form.getHeaders(),
-            },
+        // ارسال به API سرور آپلود
+        let resUpload = await fetch('https://api.shannmoderz.xyz/server/upload', {
+            method: 'POST',
+            body: form
         });
 
-        // حذف فایل موقت بعد از ارسال
-        fs.unlinkSync(filePath);
+        let img = await resUpload.json();
 
-        if (catboxResponse.data && catboxResponse.data.files) {
-            res.json({
-                status: true,
-                creator: 'nothing',
-                result: {
-                    download_url: `https://catbox.moe/${catboxResponse.data.files[0].id}`,
-                },
-            });
-        } else {
-            res.status(500).json({ status: false, message: 'Failed to upload QR code to Catbox.moe' });
+        if (img.error) {
+            throw img.error;
         }
+
+        res.json({
+            status: true,
+            creator: 'nothing',
+            result: {
+                download_url: 'https://api.shannmoderz.xyz/server/file' + img[0].src
+            }
+        });
+
     } catch (err) {
         res.status(500).json({ status: false, message: 'Error generating or uploading QR code', error: err.message });
     }
