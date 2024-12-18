@@ -2,9 +2,9 @@
   "name": "api-dashboard",
   "version": "1.0.0",
   "description": "API Dashboard with Maker, Downloader, and More",
-  "main": "Index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node Index.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
