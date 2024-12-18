@@ -11,21 +11,7 @@ const { fromBuffer } = require('file-type');
 const app = express();
 const port = process.env.PORT || 8080;
 
-async function uploadToTelegraph(buffer) {
-    const { ext } = await fromBuffer(buffer); // شناسایی فرمت فایل
-    const form = new FormData();
-    form.append('file', buffer, `file.${ext}`); // افزودن فایل به فرم
 
-    const response = await fetch('https://telegra.ph/upload', {
-        method: 'POST',
-        body: form
-    });
-
-    const result = await response.json();
-
-    if (result.error) throw new Error(result.error); // بررسی خطا
-    return `https://telegra.ph${result[0].src}`; // لینک تصویر آپلود شده
-}
 // تعریف فونت‌ها
 const fontStyles = {
     Bold: text => text.toUpperCase(),
@@ -92,23 +78,21 @@ app.get('/api/maker/qrcode', async (req, res) => {
     }
 
     try {
-        // ایجاد QR Code
-        const qrCodeImage = await QRCode.toBuffer(text);
+        // ساختن لینک برای API
+        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(text)}`;
 
-        // آپلود تصویر به Telegra.ph
-        const uploadedUrl = await uploadToTelegraph(qrCodeImage);
-
+        // بازگرداندن لینک QR Code
         res.json({
             status: true,
             creator: 'nothing',
             result: {
-                download_url: uploadedUrl
-            },
+                download_url: apiUrl
+            }
         });
     } catch (err) {
         res.status(500).json({
             status: false,
-            message: 'Error generating or uploading QR code',
+            message: 'Error generating QR code',
             error: err.message
         });
     }
