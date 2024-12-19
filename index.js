@@ -3,7 +3,7 @@ const path = require('path');
 const ytSearch = require('yt-search');
 const QRCode = require('qrcode');
 const axios = require('axios');
-
+const ytdl = require('ytdl-core');
 const app = express();
 const port = process.env.PORT || 8080;
 
@@ -118,28 +118,45 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     if (!videoUrl) {
         return res.status(400).json({
             status: false,
-            message: 'No YouTube video URL provided'
+            creator: 'Nothing-Ben',
+            result: 'No YouTube video URL provided'
         });
     }
 
     try {
-        const apiResponse = await axios.get(`https://api.vevioz.com/api/button/mp3?url=${encodeURIComponent(videoUrl)}`);
-        const downloadUrl = apiResponse.data?.button?.mp3;
-
-        if (!downloadUrl) {
-            throw new Error('Failed to fetch MP3 download URL');
+        // بررسی اینکه آیا URL معتبر یوتیوب است یا نه
+        if (!ytdl.validateURL(videoUrl)) {
+            return res.status(400).json({
+                status: false,
+                creator: 'Nothing-Ben',
+                result: 'Invalid YouTube URL'
+            });
         }
+
+        // استخراج اطلاعات ویدیو
+        const info = await ytdl.getInfo(videoUrl);
+        const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
+
+        // ساختار مشابه با خروجی ytsearch
+        const video = {
+            type: "audio",
+            videoId: info.videoDetails.videoId,
+            url: videoUrl,
+            title: info.videoDetails.title,
+            thumbnail: info.videoDetails.thumbnails[0].url,
+            timestamp: info.videoDetails.lengthSeconds,
+            views: info.videoDetails.viewCount,
+            author: info.videoDetails.author.name,
+            download_url: audioFormat.url  // لینک دانلود MP3
+        };
 
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify({
             status: true,
             creator: 'Nothing-Ben',
-            result: [{
-                type: "audio",
-                original_url: videoUrl,
-                download_url: downloadUrl
-            }]
-        }, null, 3)); // مرتب کردن JSON با فاصله 4
+            result: [video]  // ارسال یک آرایه که شامل یک ویدیو است
+        }, null, 3)); // مرتب کردن JSON با فاصله 3
+
     } catch (err) {
         res.status(500).json({
             status: false,
@@ -149,7 +166,6 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
         });
     }
 });
-
 // QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
