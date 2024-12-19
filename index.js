@@ -390,38 +390,57 @@ app.listen(port, () => {
 */
 const express = require('express');
 const ytSearch = require('yt-search');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
 const port = process.env.PORT || 8080;
-const path = require('path');
-const weekLimit = 7 * 24 * 60 * 60 * 1000; // مدت زمان یک هفته (میلی‌ثانیه)
-const users = {}; // ذخیره کاربران
-const apiKeys = {
-    "nothing-api": { limit: 100000000, used: 0, lastReset: Date.now() } // کلید پیش‌فرض با محدودیت بالا
+
+const timeLimit = 7 * 24 * 60 * 60 * 1000; // مدت زمان یک هفته (میلی‌ثانیه)
+const apiKeyFile = path.join(__dirname, 'apikeyall.json'); // مسیر فایل کلیدها
+
+// کلید پیش‌فرض
+const defaultKey = {
+    "nothing-api": { limit: 100000000, used: 0, lastReset: Date.now() }
 };
+
+// بارگذاری کلیدها از فایل
+const loadApiKeys = () => {
+    if (!fs.existsSync(apiKeyFile)) {
+        fs.writeFileSync(apiKeyFile, JSON.stringify(defaultKey, null, 2)); // ایجاد فایل در صورت عدم وجود
+    }
+    return JSON.parse(fs.readFileSync(apiKeyFile));
+};
+
+// ذخیره کلیدها در فایل
+const saveApiKeys = (apiKeys) => {
+    fs.writeFileSync(apiKeyFile, JSON.stringify(apiKeys, null, 2));
+};
+
+let apiKeys = loadApiKeys();
 
 // تابع بررسی یا ایجاد وضعیت برای کاربر
 const checkUserLimit = (apikey, ip) => {
-    if (!users[apikey]) users[apikey] = {};
-    if (!users[apikey][ip]) {
-        users[apikey][ip] = { used: 0, lastUsed: Date.now() };
+    if (!apiKeys[apikey].users) apiKeys[apikey].users = {};
+    if (!apiKeys[apikey].users[ip]) {
+        apiKeys[apikey].users[ip] = { used: 0, lastUsed: Date.now() };
     }
 
-    const resetTime = apikey === "nothing-api" ? Infinity : weekLimit;
-
-    if (Date.now() - users[apikey][ip].lastUsed > resetTime) {
-        users[apikey][ip].used = 0;
-        users[apikey][ip].lastUsed = Date.now();
+    // بازنشانی درخواست‌ها اگر بیشتر از یک هفته گذشته باشد
+    if (apikey !== "nothing-api" && Date.now() - apiKeys[apikey].users[ip].lastUsed > timeLimit) {
+        apiKeys[apikey].users[ip].used = 0;
+        apiKeys[apikey].users[ip].lastUsed = Date.now();
     }
 
-    return users[apikey][ip];
+    return apiKeys[apikey].users[ip];
 };
 
 // مسیر بررسی وضعیت API
 app.get('/api/checker', (req, res) => {
-    const apikey = req.query.apikey;
+    const apikey = req.query.apikey || "nothing-api"; // استفاده از کلید پیش‌فرض
     const ip = req.ip;
 
-    if (!apikey || !apiKeys[apikey]) {
+    if (!apiKeys[apikey]) {
         return res.status(401).json({ status: false, message: 'Invalid or missing API key.' });
     }
 
@@ -429,7 +448,7 @@ app.get('/api/checker', (req, res) => {
     const userStatus = checkUserLimit(apikey, ip);
 
     const remaining = keyData.limit - userStatus.used;
-    const resetTime = apikey === "nothing-api" ? "Never" : `${Math.ceil((weekLimit - (Date.now() - userStatus.lastUsed)) / (60 * 1000))} minutes`;
+    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
 
     res.json({
         status: true,
@@ -437,7 +456,7 @@ app.get('/api/checker', (req, res) => {
         limit: keyData.limit,
         used: userStatus.used,
         remaining,
-        resetIn: resetTime
+        resetIn: `${Math.ceil(timeLeft / (60 * 1000))} minutes`
     });
 });
 
@@ -448,22 +467,15 @@ app.get('/api/create-apikey', (req, res) => {
         return res.status(400).json({ status: false, message: 'Invalid or duplicate key.' });
     }
 
-    apiKeys[newKey] = { limit: 200, used: 0, lastReset: Date.now() };
+    apiKeys[newKey] = { limit: 200, used: 0, lastReset: Date.now(), users: {} };
+    saveApiKeys(apiKeys);
+
     res.json({ status: true, message: 'New API key created.', newKey, limit: 200 });
 });
 
-// مسیر برای دانلود فایل index.js
-app.get('/api/getsession', (req, res) => {
-    const filePath = path.join(__dirname, 'index.js');
-    res.download(filePath, 'index.js', (err) => {
-        if (err) {
-            res.status(500).json({ status: false, message: 'Error downloading file.', error: err.message });
-        }
-    });
-});
 // مسیر جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
-    const apikey = req.query.apikey;
+    const apikey = req.query.apikey || "nothing-api"; // استفاده از کلید پیش‌فرض
     const query = req.query.text;
     const ip = req.ip;
 
@@ -483,6 +495,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 
     userStatus.used += 1;
+    saveApiKeys(apiKeys); // ذخیره وضعیت کلیدها
 
     try {
         const results = await ytSearch(query);
