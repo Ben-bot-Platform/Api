@@ -401,14 +401,15 @@ const validApiKeys = ['nothing-api', 'another-api']; // لیست `apikey`های 
 
 // تابع برای مدیریت وضعیت درخواست‌های کاربران
 const checkUserLimit = (apikey) => {
+    // اگر این `apikey` برای اولین بار درخواست داده باشد، آن را در users اضافه می‌کند
     if (!users[apikey]) {
         users[apikey] = { used: 0, lastUsed: Date.now() };
     }
 
-    // بازنشانی درخواست‌ها اگر بیشتر از یک روز گذشته باشد
+    // اگر بیشتر از یک روز از آخرین استفاده گذشته باشد، بازنشانی انجام می‌دهد
     if (Date.now() - users[apikey].lastUsed > timeLimit) {
-        users[apikey].used = 0;
-        users[apikey].lastUsed = Date.now();
+        users[apikey].used = 0; // بازنشانی تعداد استفاده شده
+        users[apikey].lastUsed = Date.now(); // بروزرسانی زمان آخرین استفاده
     }
 
     return users[apikey];
@@ -427,8 +428,8 @@ app.get('/api/checker', (req, res) => {
     }
 
     const userStatus = checkUserLimit(apikey);
-    const remaining = dailyLimit - userStatus.used;
-    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
+    const remaining = dailyLimit - userStatus.used; // تعداد درخواست‌های باقیمانده
+    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed)); // زمان باقی‌مانده تا بازنشانی
 
     res.json({
         status: true,
@@ -477,8 +478,8 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     try {
         const results = await ytSearch(query);
         const videos = results.videos
-            .sort((a, b) => b.views - a.views)
-            .slice(0, 3)
+            .sort((a, b) => b.views - a.views) // ترتیب بر اساس تعداد بازدید
+            .slice(0, 3) // انتخاب 3 ویدئو برتر
             .map(video => ({
                 type: "video",
                 videoId: video.videoId,
