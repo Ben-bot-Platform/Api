@@ -111,7 +111,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 });
 
-// YT to MP3 Downloader API
+// YT to MP3 Downloader API using yt1s
 app.get('/api/downloader/ytmp3', async (req, res) => {
     const videoUrl = req.query.url;
 
@@ -124,39 +124,40 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 
     try {
-        // بررسی اینکه آیا URL معتبر یوتیوب است یا نه
-        if (!ytdl.validateURL(videoUrl)) {
-            return res.status(400).json({
+        // ارسال درخواست به API `yt1s` برای دانلود MP3
+        const response = await axios.post('https://yt1s.com/api/ajaxSearch/index', {
+            lang: 'en',
+            v_url: videoUrl
+        });
+
+        if (response.data.status === 'ok') {
+            const downloadUrl = response.data.links.mp3;
+
+            // ساختار مشابه با خروجی ytsearch
+            const video = {
+                type: "audio",
+                url: videoUrl,
+                download_url: downloadUrl, // لینک دانلود MP3
+                title: response.data.title || 'No Title Available',
+                duration: response.data.duration || 'Unknown',
+                thumbnail: response.data.thumbnail || 'No Thumbnail Available'
+            };
+
+            res.setHeader('Content-Type', 'application/json');
+            res.send(JSON.stringify({
+                status: true,
+                creator: 'Nothing-Ben',
+                result: [video]  // ارسال یک آرایه که شامل یک ویدیو است
+            }, null, 3)); // مرتب کردن JSON با فاصله 3
+
+        } else {
+            res.status(500).json({
                 status: false,
                 creator: 'Nothing-Ben',
-                result: 'Invalid YouTube URL'
+                result: 'Error fetching MP3 download URL',
+                error: 'No MP3 link found in the API response'
             });
         }
-
-        // استخراج اطلاعات ویدیو
-        const info = await ytdl.getInfo(videoUrl);
-        const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
-
-        // ساختار مشابه با خروجی ytsearch
-        const video = {
-            type: "audio",
-            videoId: info.videoDetails.videoId,
-            url: videoUrl,
-            title: info.videoDetails.title,
-            thumbnail: info.videoDetails.thumbnails[0].url,
-            timestamp: info.videoDetails.lengthSeconds,
-            views: info.videoDetails.viewCount,
-            author: info.videoDetails.author.name,
-            download_url: audioFormat.url  // لینک دانلود MP3
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify({
-            status: true,
-            creator: 'Nothing-Ben',
-            result: [video]  // ارسال یک آرایه که شامل یک ویدیو است
-        }, null, 3)); // مرتب کردن JSON با فاصله 3
-
     } catch (err) {
         res.status(500).json({
             status: false,
