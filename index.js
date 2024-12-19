@@ -1,4 +1,4 @@
-const express = require('express');
+/*const express = require('express');
 const path = require('path');
 const ytSearch = require('yt-search');
 const QRCode = require('qrcode');
@@ -378,6 +378,106 @@ app.get('/api/maker/qrcode', async (req, res) => {
             status: false,
             creator: 'Nothing-Ben',
             result: 'Error generating QR code',
+            error: err.message
+        });
+    }
+});
+
+// راه‌اندازی سرور
+app.listen(port, () => {
+    console.log(`Server is running at http://localhost:${port}`);
+});
+*/
+const express = require('express');
+const path = require('path');
+const ytSearch = require('yt-search');
+const axios = require('axios');
+const app = express();
+const port = process.env.PORT || 8080;
+
+// ذخیره تعداد درخواست‌ها برای هر apikey
+const usedApis = {};
+const dailyLimit = 200; // تعداد درخواست‌های روزانه
+const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
+
+// چک کردن تعداد درخواست‌ها برای هر apikey
+const checkApiLimit = (apikey) => {
+    if (!usedApis[apikey]) {
+        usedApis[apikey] = { count: 0, lastUsed: Date.now() };
+    }
+
+    // اگر بیشتر از یک روز از آخرین درخواست گذشته باشد، شمارش را بازنشانی کن
+    if (Date.now() - usedApis[apikey].lastUsed > timeLimit) {
+        usedApis[apikey] = { count: 0, lastUsed: Date.now() };
+    }
+
+    return usedApis[apikey];
+};
+
+// بررسی تعداد درخواست‌های باقی‌مانده
+app.get('/api/checker', (req, res) => {
+    const apikey = req.query.apikey || 'nothing-api';
+    const apiStatus = checkApiLimit(apikey);
+    const remaining = dailyLimit - apiStatus.count;
+
+    res.json({
+        status: true,
+        remaining: remaining,
+        message: remaining > 0 ? `${remaining} requests remaining` : 'You have used all your free requests for today.'
+    });
+});
+
+// جستجو و دانلود از یوتیوب
+app.get('/api/downloader/ytsearch', async (req, res) => {
+    const apikey = req.query.apikey || 'nothing-api';  // گرفتن apikey از URL
+    const query = req.query.text;
+
+    if (!query) {
+        return res.status(400).json({ status: false, message: 'No search query provided' });
+    }
+
+    const apiStatus = checkApiLimit(apikey);
+
+    // اگر تعداد درخواست‌ها از 200 بیشتر باشد
+    if (apiStatus.count >= dailyLimit) {
+        return res.status(403).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'You have used all free requests for today.'
+        });
+    }
+
+    // افزایش تعداد استفاده و به‌روزرسانی زمان آخرین استفاده
+    apiStatus.count += 1;
+    apiStatus.lastUsed = Date.now();
+
+    try {
+        const results = await ytSearch(query);
+        const videos = results.videos
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 3)
+            .map(video => ({
+                type: "video",
+                videoId: video.videoId,
+                url: video.url,
+                title: video.title,
+                thumbnail: video.thumbnail,
+                timestamp: video.duration.timestamp || "0:00",
+                views: video.views,
+                author: video.author.name
+            }));
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: videos
+        }, null, 3));
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error fetching YouTube search API',
             error: err.message
         });
     }
