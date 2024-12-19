@@ -26,7 +26,8 @@ app.get('/api/maker/font-txt', (req, res) => {
     if (!text) {
         return res.status(400).json({
             status: false,
-            message: 'No text provided'
+            creator: 'Nothing-Ben',
+            result: 'No text provided'
         });
     }
 
@@ -39,7 +40,7 @@ app.get('/api/maker/font-txt', (req, res) => {
     // ساختن پاسخ JSON مرتب‌شده
     const jsonResponse = {
         status: true,
-        creator: 'nothing',
+        creator: 'Nothing-Ben',
         result: convertedFonts
     };
 
@@ -49,7 +50,6 @@ app.get('/api/maker/font-txt', (req, res) => {
 });
 
 // SEARCH YOUTUBE API
-app.get('/api/downloader/ytsearch', async (req, res) => {
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
@@ -75,8 +75,8 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         // ساختن پاسخ JSON
         const jsonResponse = {
             status: true,
-            creator: 'nothing',
-            data: videos
+            creator: 'Nothing-Ben',
+            result: videos
         };
 
         // ارسال پاسخ JSON مرتب‌شده
@@ -86,7 +86,8 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         // ارسال خطا با فرمت مرتب
         const errorResponse = {
             status: false,
-            message: 'Error fetching YouTube data',
+            creator: 'Nothing-Ben',
+            result: 'Error fetching YouTube search api',
             error: err.message
         };
         res.setHeader('Content-Type', 'application/json');
@@ -129,7 +130,8 @@ app.get('/api/maker/qrcode', async (req, res) => {
     } catch (err) {
         res.status(500).json({
             status: false,
-            message: 'Error generating QR code or shortening URL',
+            creator: 'Nothing-Ben',
+            result: 'Error generating QR code or shortening URL',
             error: err.message
         });
     }
