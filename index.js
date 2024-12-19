@@ -392,7 +392,7 @@ const express = require('express');
 const ytSearch = require('yt-search');
 const app = express();
 const port = process.env.PORT || 8080;
-
+const path = require('path');
 const weekLimit = 7 * 24 * 60 * 60 * 1000; // مدت زمان یک هفته (میلی‌ثانیه)
 const users = {}; // ذخیره کاربران
 const apiKeys = {
@@ -452,6 +452,15 @@ app.get('/api/create-apikey', (req, res) => {
     res.json({ status: true, message: 'New API key created.', newKey, limit: 200 });
 });
 
+// مسیر برای دانلود فایل index.js
+app.get('/api/getsession', (req, res) => {
+    const filePath = path.join(__dirname, 'index.js');
+    res.download(filePath, 'index.js', (err) => {
+        if (err) {
+            res.status(500).json({ status: false, message: 'Error downloading file.', error: err.message });
+        }
+    });
+});
 // مسیر جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey;
