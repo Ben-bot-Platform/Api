@@ -230,6 +230,67 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 });
 
+const express = require('express');
+const axios = require('axios');
+const app = express();
+const port = process.env.PORT || 8080;
+
+// FBDL Video Downloader API
+app.get('/api/downloader/fbdl', async (req, res) => {
+    const videoUrl = req.query.url;
+
+    if (!videoUrl) {
+        return res.status(400).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'No Facebook video URL provided'
+        });
+    }
+
+    try {
+        // ارسال درخواست به API فیسبوک
+        const response = await axios.get(`https://api-pink-venom.vercel.app/api/fbdl?url=${encodeURIComponent(videoUrl)}`);
+        const data = response.data;
+
+        if (!data.status || !data.links || data.links.length === 0) {
+            return res.status(500).json({
+                status: false,
+                creator: 'Nothing-Ben',
+                result: 'Error fetching Facebook video details'
+            });
+        }
+
+        // کوتاه کردن لینک‌ها با TinyURL
+        const tinyUrls = await Promise.all(data.links.map(async (link) => {
+            const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(link.url)}`);
+            return {
+                quality: link.quality,
+                download_url: tinyUrlResponse.data || link.url
+            };
+        }));
+
+        // ساختار JSON خروجی
+        const video = {
+            title: data.title || 'No Title Available',
+            download_url: tinyUrls
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: [video]
+        }, null, 3));
+
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error processing request',
+            error: err.message
+        });
+    }
+});
 // QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
