@@ -14,6 +14,7 @@ const port = process.env.PORT || 8080;
 
 // FONT TEXT API STYLE
 const fontStyles = {
+const fontStyles = {
     Bold: text => text.toUpperCase(),
     Italic: text => text.split('').map(c => c + '̶').join(''),
     Fancy: text => text.split('').map(c => '✦' + c + '✦').join('')
@@ -23,22 +24,32 @@ const fontStyles = {
 app.get('/api/maker/font-txt', (req, res) => {
     const text = req.query.text;
     if (!text) {
-        return res.status(400).json({ status: false, message: 'No text provided' });
+        return res.status(400).json({
+            status: false,
+            message: 'No text provided'
+        });
     }
 
+    // تبدیل متن به فونت‌های مختلف
     const convertedFonts = {};
     Object.keys(fontStyles).forEach(fontName => {
         convertedFonts[fontName] = fontStyles[fontName](text);
     });
 
-    res.json({
+    // ساختن پاسخ JSON مرتب‌شده
+    const jsonResponse = {
         status: true,
         creator: 'nothing',
-        data: convertedFonts
-    });
+        result: convertedFonts
+    };
+
+    // ارسال پاسخ JSON مرتب‌شده
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(jsonResponse, null, 4)); // تنظیم فاصله 4 برای فرمت مرتب
 });
 
 // SEARCH YOUTUBE API
+app.get('/api/downloader/ytsearch', async (req, res) => {
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
@@ -61,16 +72,27 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
                 author: video.author.name
             }));
 
-        res.json({
+        // ساختن پاسخ JSON
+        const jsonResponse = {
             status: true,
             creator: 'nothing',
             data: videos
-        });
+        };
+
+        // ارسال پاسخ JSON مرتب‌شده
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify(jsonResponse, null, 4)); // تنظیم فاصله 4 برای فرمت مرتب
     } catch (err) {
-        res.status(500).json({ status: false, message: 'Error fetching YouTube data', error: err.message });
+        // ارسال خطا با فرمت مرتب
+        const errorResponse = {
+            status: false,
+            message: 'Error fetching YouTube data',
+            error: err.message
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify(errorResponse, null, 4));
     }
 });
-
 //QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
