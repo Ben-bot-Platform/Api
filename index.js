@@ -393,122 +393,104 @@ const ytSearch = require('yt-search');
 const app = express();
 const port = process.env.PORT || 8080;
 
-const dailyLimit = 200; // تعداد درخواست‌های مجاز روزانه
-const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
-
-const users = {}; // ذخیره داده‌های کاربران در حافظه (حذف‌شدنی با ری‌استارت سرور)
-const validApiKeys = ['nothing-api']; // لیست `apikey`های معتبر
-
-// بررسی و مدیریت وضعیت کاربر
-const checkUserLimit = (ip) => {
-    if (!users[ip]) {
-        users[ip] = { used: 0, lastUsed: Date.now() };
-    }
-
-    // بازنشانی درخواست‌ها اگر بیشتر از یک روز گذشته باشد
-    if (Date.now() - users[ip].lastUsed > timeLimit) {
-        users[ip].used = 0;
-        users[ip].lastUsed = Date.now();
-    }
-
-    return users[ip];
+const weekLimit = 7 * 24 * 60 * 60 * 1000; // مدت زمان یک هفته (میلی‌ثانیه)
+const users = {}; // ذخیره کاربران
+const apiKeys = {
+    "nothing-api": { limit: 100000000, used: 0, lastReset: Date.now() } // کلید پیش‌فرض با محدودیت بالا
 };
 
-// مسیر بررسی لیمیت
-app.get('/api/checker', (req, res) => {
-    const apikey = req.query.apikey;
-    const ip = req.ip; // آدرس آی‌پی کاربر
-
-    // بررسی معتبر بودن `apikey`
-    if (!apikey || !validApiKeys.includes(apikey)) {
-        return res.status(401).json({
-            status: false,
-            message: 'Invalid or missing apikey.'
-        });
+// تابع بررسی یا ایجاد وضعیت برای کاربر
+const checkUserLimit = (apikey, ip) => {
+    if (!users[apikey]) users[apikey] = {};
+    if (!users[apikey][ip]) {
+        users[apikey][ip] = { used: 0, lastUsed: Date.now() };
     }
 
-    const userStatus = checkUserLimit(ip);
-    const remaining = dailyLimit - userStatus.used;
-    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
+    const resetTime = apikey === "nothing-api" ? Infinity : weekLimit;
+
+    if (Date.now() - users[apikey][ip].lastUsed > resetTime) {
+        users[apikey][ip].used = 0;
+        users[apikey][ip].lastUsed = Date.now();
+    }
+
+    return users[apikey][ip];
+};
+
+// مسیر بررسی وضعیت API
+app.get('/api/checker', (req, res) => {
+    const apikey = req.query.apikey;
+    const ip = req.ip;
+
+    if (!apikey || !apiKeys[apikey]) {
+        return res.status(401).json({ status: false, message: 'Invalid or missing API key.' });
+    }
+
+    const keyData = apiKeys[apikey];
+    const userStatus = checkUserLimit(apikey, ip);
+
+    const remaining = keyData.limit - userStatus.used;
+    const resetTime = apikey === "nothing-api" ? "Never" : `${Math.ceil((weekLimit - (Date.now() - userStatus.lastUsed)) / (60 * 1000))} minutes`;
 
     res.json({
         status: true,
+        apikey,
+        limit: keyData.limit,
         used: userStatus.used,
-        remaining: remaining,
-        resetIn: `${Math.ceil(timeLeft / (60 * 1000))} minutes`, // زمان باقیمانده تا بازنشانی
-        message: remaining > 0 
-            ? `${remaining} requests remaining`
-            : 'You have used all free requests for today.'
+        remaining,
+        resetIn: resetTime
     });
+});
+
+// مسیر ایجاد کلید جدید
+app.get('/api/create-apikey', (req, res) => {
+    const newKey = req.query.key;
+    if (!newKey || apiKeys[newKey]) {
+        return res.status(400).json({ status: false, message: 'Invalid or duplicate key.' });
+    }
+
+    apiKeys[newKey] = { limit: 200, used: 0, lastReset: Date.now() };
+    res.json({ status: true, message: 'New API key created.', newKey, limit: 200 });
 });
 
 // مسیر جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey;
     const query = req.query.text;
-    const ip = req.ip; // آدرس آی‌پی کاربر
+    const ip = req.ip;
 
-    // بررسی معتبر بودن `apikey`
-    if (!apikey || !validApiKeys.includes(apikey)) {
-        return res.status(401).json({
-            status: false,
-            message: 'Invalid or missing apikey.'
-        });
+    if (!apikey || !apiKeys[apikey]) {
+        return res.status(401).json({ status: false, message: 'Invalid or missing API key.' });
+    }
+
+    const keyData = apiKeys[apikey];
+    const userStatus = checkUserLimit(apikey, ip);
+
+    if (userStatus.used >= keyData.limit) {
+        return res.status(403).json({ status: false, message: 'Limit exceeded for this key.' });
     }
 
     if (!query) {
-        return res.status(400).json({ status: false, message: 'No search query provided' });
+        return res.status(400).json({ status: false, message: 'No search query provided.' });
     }
 
-    const userStatus = checkUserLimit(ip);
-
-    // بررسی محدودیت درخواست
-    if (userStatus.used >= dailyLimit) {
-        const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
-        return res.status(403).json({
-            status: false,
-            creator: 'Nothing-Ben',
-            result: 'You have used all free requests for today.',
-            resetIn: `${Math.ceil(timeLeft / (60 * 1000))} minutes`
-        });
-    }
-
-    // افزایش تعداد درخواست‌ها
     userStatus.used += 1;
 
     try {
         const results = await ytSearch(query);
-        const videos = results.videos
-            .sort((a, b) => b.views - a.views)
-            .slice(0, 3)
-            .map(video => ({
-                type: "video",
-                videoId: video.videoId,
-                url: video.url,
-                title: video.title,
-                thumbnail: video.thumbnail,
-                timestamp: video.duration.timestamp || "0:00",
-                views: video.views,
-                author: video.author.name
-            }));
-
-        res.json({
-            status: true,
-            creator: 'Nothing-Ben',
-            apikey: apikey,
-            result: videos
-        });
+        const videos = results.videos.slice(0, 3).map(video => ({
+            videoId: video.videoId,
+            url: video.url,
+            title: video.title,
+            thumbnail: video.thumbnail,
+            views: video.views
+        }));
+        res.json({ status: true, result: videos });
     } catch (err) {
-        res.status(500).json({
-            status: false,
-            creator: 'Nothing-Ben',
-            result: 'Error fetching YouTube search API',
-            error: err.message
-        });
+        res.status(500).json({ status: false, message: 'Error fetching videos.', error: err.message });
     }
 });
 
 // راه‌اندازی سرور
 app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
 });
