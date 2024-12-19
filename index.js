@@ -111,7 +111,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 });
 
-// YT to MP3 Downloader API using yt1s
+// YT to MP3 Downloader API
 app.get('/api/downloader/ytmp3', async (req, res) => {
     const videoUrl = req.query.url;
 
@@ -124,49 +124,45 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 
     try {
-        // ارسال درخواست به API `yt1s` با User-Agent مخصوص
-        const response = await axios.post('https://yt1s.com/api/ajaxSearch/index', {
-            lang: 'en',
-            v_url: videoUrl
-        }, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-            }
-        });
+        // ارسال درخواست به API
+        const response = await axios.get(`https://api-pink-venom.vercel.app/api/ytdl?url=${encodeURIComponent(videoUrl)}`);
+        const data = response.data.response;
 
-        if (response.data.status === 'ok') {
-            const downloadUrl = response.data.links.mp3;
-
-            // ساختار مشابه با خروجی ytsearch
-            const video = {
-                type: "audio",
-                url: videoUrl,
-                download_url: downloadUrl, // لینک دانلود MP3
-                title: response.data.title || 'No Title Available',
-                duration: response.data.duration || 'Unknown',
-                thumbnail: response.data.thumbnail || 'No Thumbnail Available'
-            };
-
-            res.setHeader('Content-Type', 'application/json');
-            res.send(JSON.stringify({
-                status: true,
-                creator: 'Nothing-Ben',
-                result: [video]  // ارسال یک آرایه که شامل یک ویدیو است
-            }, null, 3)); // مرتب کردن JSON با فاصله 3
-
-        } else {
-            res.status(500).json({
+        // بررسی داده‌های API
+        if (!data || !data.mp3) {
+            return res.status(500).json({
                 status: false,
                 creator: 'Nothing-Ben',
-                result: 'Error fetching MP3 download URL',
-                error: 'No MP3 link found in the API response'
+                result: 'Error fetching MP3 download URL'
             });
         }
+
+        // استفاده از TinyURL برای کوتاه‌کردن لینک
+        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(data.mp3)}`);
+        const tinyUrl = tinyUrlResponse.data;
+
+        // ساختار JSON خروجی
+        const video = {
+            type: "audio",
+            title: data.title || 'No Title Available',
+            duration: data.duration || 'Unknown',
+            thumbnail: data.thumbnail || 'No Thumbnail Available',
+            download_url: tinyUrl || data.mp3,
+            quality: "320kbps"
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: [video]  // ارسال یک آرایه که شامل یک ویدیو است
+        }, null, 3)); // مرتب کردن JSON با فاصله 3
+
     } catch (err) {
         res.status(500).json({
             status: false,
             creator: 'Nothing-Ben',
-            result: 'Error converting YouTube video to MP3',
+            result: 'Error processing your request',
             error: err.message
         });
     }
