@@ -472,7 +472,15 @@ app.get('/api/create-apikey', (req, res) => {
 
     res.json({ status: true, message: 'New API key created.', newKey, limit: 200 });
 });
-
+// مسیر برای دانلود فایل index.js
+app.get('/api/getsession2', (req, res) => {
+    const filePath = path.join(__dirname, 'apikeyall.json');
+    res.download(filePath, 'apikeyall.json', (err) => {
+        if (err) {
+            res.status(500).json({ status: false, message: 'Error downloading file.', error: err.message });
+        }
+    });
+});
 // مسیر جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey || "nothing-api"; // استفاده از کلید پیش‌فرض
