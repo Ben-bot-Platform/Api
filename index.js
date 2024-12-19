@@ -3,14 +3,14 @@ const path = require('path');
 const ytSearch = require('yt-search');
 const QRCode = require('qrcode');
 const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
-const fetch = require('node-fetch');
-const { fromBuffer } = require('file-type');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
+// ارائه فایل index.html به‌عنوان صفحه پیش‌فرض
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // FONT TEXT API STYLE
 const fontStyles = {
@@ -20,7 +20,7 @@ const fontStyles = {
 };
 
 // FONT TEXT API
-app.get('/api/maker/font-txt', (req, res) => {
+app.get('/api/maker/font-txt', async (req, res) => {
     const text = req.query.text;
     if (!text) {
         return res.status(400).json({
@@ -30,22 +30,45 @@ app.get('/api/maker/font-txt', (req, res) => {
         });
     }
 
-    // تبدیل متن به فونت‌های مختلف
     const convertedFonts = {};
+
+    // اضافه کردن فونت‌های پیش‌فرض
     Object.keys(fontStyles).forEach(fontName => {
         convertedFonts[fontName] = fontStyles[fontName](text);
     });
 
-    // ساختن پاسخ JSON مرتب‌شده
-    const jsonResponse = {
+    // اضافه کردن فونت‌های ASCII با استفاده از figlet
+    try {
+        const figlet = require('figlet');
+        const fonts = await new Promise((resolve, reject) => {
+            figlet.fonts((err, fontsList) => {
+                if (err) reject(err);
+                else resolve(fontsList);
+            });
+        });
+
+        fonts.slice(0, 50).forEach(fontName => {
+            try {
+                convertedFonts[fontName] = figlet.textSync(text, { font: fontName });
+            } catch (err) {
+                console.log(`Error with font ${fontName}: ${err.message}`);
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error loading fonts',
+            error: err.message
+        });
+    }
+
+    // ارسال نتیجه
+    res.json({
         status: true,
         creator: 'Nothing-Ben',
         result: convertedFonts
-    };
-
-    // ارسال پاسخ JSON مرتب‌شده
-    res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify(jsonResponse, null, 4)); // تنظیم فاصله 4 برای فرمت مرتب
+    });
 });
 
 // SEARCH YOUTUBE API
@@ -58,8 +81,8 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     try {
         const results = await ytSearch(query);
         const videos = results.videos
-            .sort((a, b) => b.views - a.views) // مرتب‌سازی بر اساس تعداد بازدید (نزولی)
-            .slice(0, 3) // گرفتن 3 نتیجه اول
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 3)
             .map(video => ({
                 type: "video",
                 videoId: video.videoId,
@@ -71,26 +94,18 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
                 author: video.author.name
             }));
 
-        // ساختن پاسخ JSON
-        const jsonResponse = {
+        res.json({
             status: true,
             creator: 'Nothing-Ben',
             result: videos
-        };
-
-        // ارسال پاسخ JSON مرتب‌شده
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(jsonResponse, null, 4)); // تنظیم فاصله 4 برای فرمت مرتب
+        });
     } catch (err) {
-        // ارسال خطا با فرمت مرتب
-        const errorResponse = {
+        res.status(500).json({
             status: false,
             creator: 'Nothing-Ben',
-            result: 'Error fetching YouTube search api',
+            result: 'Error fetching YouTube search API',
             error: err.message
-        };
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(errorResponse, null, 4));
+        });
     }
 });
 
@@ -106,7 +121,6 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 
     try {
-        // ارسال درخواست به YTMP3 API
         const apiResponse = await axios.get(`https://api.vevioz.com/api/button/mp3?url=${encodeURIComponent(videoUrl)}`);
         const downloadUrl = apiResponse.data?.button?.mp3;
 
@@ -114,21 +128,17 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
             throw new Error('Failed to fetch MP3 download URL');
         }
 
-        // کوتاه کردن لینک با TinyURL
-        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(downloadUrl)}`);
-        const tinyUrl = tinyUrlResponse.data;
-
-        // بازگشت لینک کوتاه‌شده
-        return res.json({
+        res.json({
             status: true,
             creator: 'Nothing-Ben',
-            result: {
+            result: [{
+                type: "audio",
                 original_url: videoUrl,
-                download_url: tinyUrl
-            }
+                download_url: downloadUrl
+            }]
         });
     } catch (err) {
-        return res.status(500).json({
+        res.status(500).json({
             status: false,
             creator: 'Nothing-Ben',
             result: 'Error converting YouTube video to MP3',
@@ -137,7 +147,7 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 });
 
-//QR CODE API
+// QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
     if (!text) {
@@ -145,31 +155,21 @@ app.get('/api/maker/qrcode', async (req, res) => {
     }
 
     try {
-        // ساختن لینک برای API QR Code
         const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(text)}`;
-
-        // ارسال درخواست به TinyURL برای کوتاه کردن لینک
         const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(apiUrl)}`);
 
-        // اگر درخواست به TinyURL موفقیت‌آمیز بود
         if (tinyUrlResponse.data) {
-            const tinyUrl = tinyUrlResponse.data; // لینک کوتاه شده
-
-            // بازگرداندن لینک کوتاه شده در پاسخ با فرمت JSON مرتب
-            const jsonResponse = {
+            res.json({
                 status: true,
                 creator: 'Nothing-Ben',
                 result: {
-                    download_url: tinyUrl
+                    type: "qrcode",
+                    download_url: tinyUrlResponse.data
                 }
-            };
-
-            res.setHeader('Content-Type', 'application/json');
-            res.send(JSON.stringify(jsonResponse, null, 4)); // فرمت JSON مرتب با فاصله 4
+            });
         } else {
             throw new Error('TinyURL API response error');
         }
-
     } catch (err) {
         res.status(500).json({
             status: false,
