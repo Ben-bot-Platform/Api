@@ -389,81 +389,90 @@ app.listen(port, () => {
 });
 */
 const express = require('express');
-const fs = require('fs');
 const ytSearch = require('yt-search');
 const app = express();
 const port = process.env.PORT || 8080;
 
-const dailyLimit = 200; // تعداد درخواست‌های روزانه
+const dailyLimit = 200; // حداکثر تعداد درخواست‌های روزانه
 const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
 
-const apikeysFilePath = './apikeys.json';
+const users = {}; // ذخیره داده‌های کاربران در حافظه موقت
+const validApiKeys = ['nothing-api', 'another-api']; // لیست `apikey`های معتبر
 
-// خواندن فایل apikeys.json
-const readApiKeys = () => {
-    try {
-        const data = fs.readFileSync(apikeysFilePath, 'utf-8');
-        return JSON.parse(data);
-    } catch (err) {
-        return {}; // در صورت وجود نداشتن فایل یا خطا، یک شیء خالی باز می‌گرداند
+// تابع برای مدیریت وضعیت درخواست‌های کاربران
+const checkUserLimit = (apikey) => {
+    if (!users[apikey]) {
+        users[apikey] = { used: 0, lastUsed: Date.now() };
     }
+
+    // بازنشانی درخواست‌ها اگر بیشتر از یک روز گذشته باشد
+    if (Date.now() - users[apikey].lastUsed > timeLimit) {
+        users[apikey].used = 0;
+        users[apikey].lastUsed = Date.now();
+    }
+
+    return users[apikey];
 };
 
-// نوشتن به فایل apikeys.json
-const writeApiKeys = (data) => {
-    try {
-        fs.writeFileSync(apikeysFilePath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err) {
-        console.error('Error writing to apikeys.json', err);
-    }
-};
+// مسیر بررسی وضعیت درخواست‌ها
+app.get('/api/checker', (req, res) => {
+    const apikey = req.query.apikey;
 
-// چک کردن تعداد درخواست‌ها برای هر apikey
-const checkApiLimit = (apikey) => {
-    const apiKeys = readApiKeys();
-    if (!apiKeys[apikey]) {
-        apiKeys[apikey] = { used: 0, limit: dailyLimit, lastUsed: Date.now() };
+    // بررسی معتبر بودن `apikey`
+    if (!apikey || !validApiKeys.includes(apikey)) {
+        return res.status(401).json({
+            status: false,
+            message: 'Invalid or missing apikey.'
+        });
     }
 
-    // اگر بیشتر از یک روز از آخرین درخواست گذشته باشد، شمارش را بازنشانی کن
-    if (Date.now() - apiKeys[apikey].lastUsed > timeLimit) {
-        apiKeys[apikey].used = 0;  // بازنشانی تعداد درخواست‌ها
-        apiKeys[apikey].lastUsed = Date.now();  // تنظیم زمان آخرین استفاده
-    }
+    const userStatus = checkUserLimit(apikey);
+    const remaining = dailyLimit - userStatus.used;
+    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
 
-    writeApiKeys(apiKeys);
-    return apiKeys[apikey];
-};
+    res.json({
+        status: true,
+        used: userStatus.used,
+        remaining: remaining,
+        resetIn: `${Math.ceil(timeLeft / (60 * 1000))} minutes`, // زمان باقیمانده تا بازنشانی
+        message: remaining > 0 
+            ? `${remaining} requests remaining`
+            : 'You have used all free requests for today.'
+    });
+});
 
-// جستجو و دانلود از یوتیوب
+// مسیر جستجو در یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
-    const apikey = req.query.apikey || 'nothing-api';  // گرفتن apikey از URL
+    const apikey = req.query.apikey;
     const query = req.query.text;
+
+    // بررسی معتبر بودن `apikey`
+    if (!apikey || !validApiKeys.includes(apikey)) {
+        return res.status(401).json({
+            status: false,
+            message: 'Invalid or missing apikey.'
+        });
+    }
 
     if (!query) {
         return res.status(400).json({ status: false, message: 'No search query provided' });
     }
 
-    const apiStatus = checkApiLimit(apikey);
+    const userStatus = checkUserLimit(apikey);
 
-    // اگر تعداد درخواست‌ها از 200 بیشتر باشد
-    if (apiStatus.used >= dailyLimit) {
+    // بررسی محدودیت درخواست
+    if (userStatus.used >= dailyLimit) {
+        const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
         return res.status(403).json({
             status: false,
             creator: 'Nothing-Ben',
             result: 'You have used all free requests for today.',
-            apikey: apikey
+            resetIn: `${Math.ceil(timeLeft / (60 * 1000))} minutes`
         });
     }
 
-    // افزایش تعداد استفاده و به‌روزرسانی زمان آخرین استفاده
-    apiStatus.used += 1;
-    apiStatus.lastUsed = Date.now();
-
-    // ذخیره تغییرات در فایل apikeys.json
-    const apiKeys = readApiKeys();
-    apiKeys[apikey] = apiStatus;
-    writeApiKeys(apiKeys);
+    // افزایش تعداد درخواست‌ها
+    userStatus.used += 1;
 
     try {
         const results = await ytSearch(query);
@@ -481,20 +490,18 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
                 author: video.author.name
             }));
 
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify({
+        res.json({
             status: true,
             creator: 'Nothing-Ben',
-            result: videos,
-            apikey: apikey
-        }, null, 3));
+            apikey: apikey,
+            result: videos
+        });
     } catch (err) {
         res.status(500).json({
             status: false,
             creator: 'Nothing-Ben',
             result: 'Error fetching YouTube search API',
-            error: err.message,
-            apikey: apikey
+            error: err.message
         });
     }
 });
