@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const ytSearch = require('yt-search');
 const QRCode = require('qrcode');
+const gifted = require('gifted-dls');
 const axios = require('axios');
 const ytdl = require('ytdl-core');
 const app = express();
@@ -267,6 +268,55 @@ app.get('/api/downloader/fbdl', async (req, res) => {
         const video = {
             title: data.title || 'No Title Available',
             download_url: tinyUrls
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: [video]
+        }, null, 3));
+
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error processing request',
+            error: err.message
+        });
+    }
+});
+//ING DL video downloader
+app.get('/api/downloader/igdl', async (req, res) => {
+    const videoUrl = req.query.url;
+
+    if (!videoUrl) {
+        return res.status(400).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'No Instagram video URL provided'
+        });
+    }
+
+    try {
+        // ارسال درخواست به API اینستاگرام
+        const data = await gifted.giftedigdl(videoUrl);
+
+        if (data.status !== 200 || !data.result || !data.result.download_url) {
+            return res.status(500).json({
+                status: false,
+                creator: 'Nothing-Ben',
+                result: 'Error fetching Instagram video details'
+            });
+        }
+
+        // کوتاه کردن لینک دانلود با TinyURL
+        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(data.result.download_url)}`);
+        
+        // ساختار JSON خروجی
+        const video = {
+            title: data.result.creator || 'No Title Available',
+            download_url: tinyUrlResponse.data || data.result.download_url
         };
 
         res.setHeader('Content-Type', 'application/json');
