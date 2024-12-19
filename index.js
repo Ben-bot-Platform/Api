@@ -390,61 +390,52 @@ app.listen(port, () => {
 */
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
 const ytSearch = require('yt-search');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// فایل JSON برای ذخیره apikey ها
-const apiFilePath = path.join(__dirname, 'apikeys.json');
+const dailyLimit = 200; // تعداد درخواست‌های روزانه
+const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
 
-// چک کردن اینکه فایل apikey ها وجود دارد یا خیر
-if (!fs.existsSync(apiFilePath)) {
-    fs.writeFileSync(apiFilePath, JSON.stringify({}, null, 2)); // ایجاد فایل جدید اگر وجود ندارد
-}
+const apikeysFilePath = './apikeys.json';
 
-// خواندن apikey ها از فایل
-const getApiKeys = () => {
-    const data = fs.readFileSync(apiFilePath);
-    return JSON.parse(data);
+// خواندن فایل apikeys.json
+const readApiKeys = () => {
+    try {
+        const data = fs.readFileSync(apikeysFilePath, 'utf-8');
+        return JSON.parse(data);
+    } catch (err) {
+        return {}; // در صورت وجود نداشتن فایل یا خطا، یک شیء خالی باز می‌گرداند
+    }
 };
 
-// ذخیره apikey ها به فایل
-const saveApiKeys = (keys) => {
-    fs.writeFileSync(apiFilePath, JSON.stringify(keys, null, 2));
+// نوشتن به فایل apikeys.json
+const writeApiKeys = (data) => {
+    try {
+        fs.writeFileSync(apikeysFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+        console.error('Error writing to apikeys.json', err);
+    }
 };
 
 // چک کردن تعداد درخواست‌ها برای هر apikey
 const checkApiLimit = (apikey) => {
-    const keys = getApiKeys();
-
-    if (!keys[apikey]) {
-        keys[apikey] = { count: 0, lastUsed: Date.now(), limit: 200 }; // تنظیم محدودیت پیش‌فرض 200 درخواست
+    const apiKeys = readApiKeys();
+    if (!apiKeys[apikey]) {
+        apiKeys[apikey] = { used: 0, limit: dailyLimit, lastUsed: Date.now() };
     }
 
     // اگر بیشتر از یک روز از آخرین درخواست گذشته باشد، شمارش را بازنشانی کن
-    if (Date.now() - keys[apikey].lastUsed > 24 * 60 * 60 * 1000) {
-        keys[apikey].count = 0;
-        keys[apikey].lastUsed = Date.now();
+    if (Date.now() - apiKeys[apikey].lastUsed > timeLimit) {
+        apiKeys[apikey].used = 0;  // بازنشانی تعداد درخواست‌ها
+        apiKeys[apikey].lastUsed = Date.now();  // تنظیم زمان آخرین استفاده
     }
 
-    saveApiKeys(keys); // ذخیره تغییرات
-    return keys[apikey];
+    writeApiKeys(apiKeys);
+    return apiKeys[apikey];
 };
 
-// بررسی تعداد درخواست‌های باقی‌مانده
-app.get('/api/checker', (req, res) => {
-    const apikey = req.query.apikey || 'nothing-api';
-    const apiStatus = checkApiLimit(apikey);
-    const remaining = apiStatus.limit - apiStatus.count;
-
-    res.json({
-        status: true,
-        remaining: remaining,
-        message: remaining > 0 ? `${remaining} requests remaining` : 'You have used all your free requests for today.'
-    });
-});
-
+// جستجو و دانلود از یوتیوب
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey || 'nothing-api';  // گرفتن apikey از URL
     const query = req.query.text;
@@ -456,18 +447,23 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     const apiStatus = checkApiLimit(apikey);
 
     // اگر تعداد درخواست‌ها از 200 بیشتر باشد
-    if (apiStatus.count >= dailyLimit) {
+    if (apiStatus.used >= dailyLimit) {
         return res.status(403).json({
             status: false,
             creator: 'Nothing-Ben',
             result: 'You have used all free requests for today.',
-            apikey: apikey // اضافه کردن apikey به پاسخ
+            apikey: apikey
         });
     }
 
     // افزایش تعداد استفاده و به‌روزرسانی زمان آخرین استفاده
-    apiStatus.count += 1;
+    apiStatus.used += 1;
     apiStatus.lastUsed = Date.now();
+
+    // ذخیره تغییرات در فایل apikeys.json
+    const apiKeys = readApiKeys();
+    apiKeys[apikey] = apiStatus;
+    writeApiKeys(apiKeys);
 
     try {
         const results = await ytSearch(query);
@@ -490,7 +486,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
             status: true,
             creator: 'Nothing-Ben',
             result: videos,
-            apikey: apikey // اضافه کردن apikey به پاسخ
+            apikey: apikey
         }, null, 3));
     } catch (err) {
         res.status(500).json({
@@ -498,10 +494,11 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
             creator: 'Nothing-Ben',
             result: 'Error fetching YouTube search API',
             error: err.message,
-            apikey: apikey // اضافه کردن apikey به پاسخ در صورت بروز خطا
+            apikey: apikey
         });
     }
 });
+
 // راه‌اندازی سرور
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
