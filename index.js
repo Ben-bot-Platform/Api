@@ -287,7 +287,7 @@ app.get('/api/downloader/fbdl', async (req, res) => {
     }
 });
 //ING DL video downloader
-app.get('/api/downloader/igdl', async (req, res) => {
+app.get('/api/downloader/ingdl', async (req, res) => {
     const videoUrl = req.query.url;
 
     if (!videoUrl) {
@@ -299,10 +299,11 @@ app.get('/api/downloader/igdl', async (req, res) => {
     }
 
     try {
-        // ارسال درخواست به API اینستاگرام
-        const data = await gifted.giftedigdl(videoUrl);
+        // ارسال درخواست به API Instagram
+        const response = await axios.get(`https://bk9.fun/download/instagram?url=${encodeURIComponent(videoUrl)}`);
+        const data = response.data;
 
-        if (data.status !== 200 || !data.result || !data.result.download_url) {
+        if (!data.status || !data.BK9 || data.BK9.length === 0) {
             return res.status(500).json({
                 status: false,
                 creator: 'Nothing-Ben',
@@ -310,20 +311,26 @@ app.get('/api/downloader/igdl', async (req, res) => {
             });
         }
 
-        // کوتاه کردن لینک دانلود با TinyURL
-        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(data.result.download_url)}`);
-        
+        // کوتاه کردن لینک‌ها با TinyURL
+        const tinyUrls = await Promise.all(data.BK9.map(async (link) => {
+            const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(link.url)}`);
+            return {
+                type: link.type,
+                download_url: tinyUrlResponse.data || link.url
+            };
+        }));
+
         // ساختار JSON خروجی
         const video = {
-            title: data.result.creator || 'No Title Available',
-            download_url: tinyUrlResponse.data || data.result.download_url
+            thumbnail: data.BK9.find((item) => item.type === 'jpg')?.url || 'No Thumbnail Available',
+            download_url: tinyUrls
         };
 
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify({
             status: true,
             creator: 'Nothing-Ben',
-            result: [video]
+            result: video
         }, null, 3));
 
     } catch (err) {
