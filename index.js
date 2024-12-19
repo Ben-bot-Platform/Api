@@ -64,11 +64,12 @@ app.get('/api/maker/font-txt', async (req, res) => {
     }
 
     // ارسال نتیجه
-    res.json({
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify({
         status: true,
         creator: 'Nothing-Ben',
         result: convertedFonts
-    });
+    }, null, 3)); // مرتب کردن JSON با فاصله 4
 });
 
 // SEARCH YOUTUBE API
@@ -94,11 +95,12 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
                 author: video.author.name
             }));
 
-        res.json({
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
             status: true,
             creator: 'Nothing-Ben',
             result: videos
-        });
+        }, null, 3)); // مرتب کردن JSON با فاصله 4
     } catch (err) {
         res.status(500).json({
             status: false,
@@ -128,7 +130,8 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
             throw new Error('Failed to fetch MP3 download URL');
         }
 
-        res.json({
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
             status: true,
             creator: 'Nothing-Ben',
             result: [{
@@ -136,7 +139,7 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
                 original_url: videoUrl,
                 download_url: downloadUrl
             }]
-        });
+        }, null, 3)); // مرتب کردن JSON با فاصله 4
     } catch (err) {
         res.status(500).json({
             status: false,
@@ -159,14 +162,15 @@ app.get('/api/maker/qrcode', async (req, res) => {
         const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(apiUrl)}`);
 
         if (tinyUrlResponse.data) {
-            res.json({
+            res.setHeader('Content-Type', 'application/json');
+            res.send(JSON.stringify({
                 status: true,
                 creator: 'Nothing-Ben',
                 result: {
                     type: "qrcode",
                     download_url: tinyUrlResponse.data
                 }
-            });
+            }, null, 3)); // مرتب کردن JSON با فاصله 4
         } else {
             throw new Error('TinyURL API response error');
         }
