@@ -124,10 +124,14 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
     }
 
     try {
-        // ارسال درخواست به API `yt1s` برای دانلود MP3
+        // ارسال درخواست به API `yt1s` با User-Agent مخصوص
         const response = await axios.post('https://yt1s.com/api/ajaxSearch/index', {
             lang: 'en',
             v_url: videoUrl
+        }, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+            }
         });
 
         if (response.data.status === 'ok') {
