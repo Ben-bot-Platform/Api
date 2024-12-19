@@ -390,32 +390,17 @@ app.listen(port, () => {
 */
 const express = require('express');
 const ytSearch = require('yt-search');
-const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 8080;
 
-const dailyLimit = 200; // حداکثر تعداد درخواست‌های روزانه
+const dailyLimit = 200; // تعداد درخواست‌های مجاز روزانه
 const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
-const userFile = './apikeyuser.json'; // فایل ذخیره‌سازی اطلاعات کاربران
-const validApiKeys = ['nothing-api', 'another-api']; // لیست `apikey`های معتبر
 
-// بارگذاری اطلاعات کاربران از فایل
-const loadUsers = () => {
-    if (!fs.existsSync(userFile)) {
-        fs.writeFileSync(userFile, JSON.stringify({}));
-    }
-    return JSON.parse(fs.readFileSync(userFile, 'utf-8'));
-};
+const users = {}; // ذخیره داده‌های کاربران در حافظه (حذف‌شدنی با ری‌استارت سرور)
+const validApiKeys = ['nothing-api']; // لیست `apikey`های معتبر
 
-// ذخیره اطلاعات کاربران در فایل
-const saveUsers = (users) => {
-    fs.writeFileSync(userFile, JSON.stringify(users, null, 2));
-};
-
-// تابع برای مدیریت وضعیت درخواست‌های کاربران
+// بررسی و مدیریت وضعیت کاربر
 const checkUserLimit = (ip) => {
-    const users = loadUsers();
-
     if (!users[ip]) {
         users[ip] = { used: 0, lastUsed: Date.now() };
     }
@@ -426,14 +411,13 @@ const checkUserLimit = (ip) => {
         users[ip].lastUsed = Date.now();
     }
 
-    saveUsers(users); // ذخیره وضعیت به‌روز‌شده
     return users[ip];
 };
 
-// مسیر بررسی وضعیت درخواست‌ها
+// مسیر بررسی لیمیت
 app.get('/api/checker', (req, res) => {
     const apikey = req.query.apikey;
-    const ip = req.ip; // دریافت IP کاربر
+    const ip = req.ip; // آدرس آی‌پی کاربر
 
     // بررسی معتبر بودن `apikey`
     if (!apikey || !validApiKeys.includes(apikey)) {
@@ -462,7 +446,7 @@ app.get('/api/checker', (req, res) => {
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey;
     const query = req.query.text;
-    const ip = req.ip; // دریافت IP کاربر
+    const ip = req.ip; // آدرس آی‌پی کاربر
 
     // بررسی معتبر بودن `apikey`
     if (!apikey || !validApiKeys.includes(apikey)) {
@@ -491,7 +475,6 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
 
     // افزایش تعداد درخواست‌ها
     userStatus.used += 1;
-    saveUsers(loadUsers()); // ذخیره وضعیت به‌روز‌شده
 
     try {
         const results = await ytSearch(query);
