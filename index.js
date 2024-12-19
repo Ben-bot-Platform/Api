@@ -286,7 +286,7 @@ app.get('/api/downloader/fbdl', async (req, res) => {
         });
     }
 });
-//ING DL video downloader
+// Instagram Downloader API
 app.get('/api/downloader/ingdl', async (req, res) => {
     const videoUrl = req.query.url;
 
@@ -311,26 +311,33 @@ app.get('/api/downloader/ingdl', async (req, res) => {
             });
         }
 
-        // کوتاه کردن لینک‌ها با TinyURL
-        const tinyUrls = await Promise.all(data.BK9.map(async (link) => {
-            const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(link.url)}`);
-            return {
-                type: link.type,
-                download_url: tinyUrlResponse.data || link.url
-            };
-        }));
+        // پیدا کردن لینک thumbnail (jpg) و لینک mp4
+        const thumbnailLink = data.BK9.find((item) => item.type === 'jpg')?.url || null;
+        const mp4Link = data.BK9.find((item) => item.type === 'mp4')?.url || null;
+
+        if (!thumbnailLink || !mp4Link) {
+            return res.status(500).json({
+                status: false,
+                creator: 'Nothing-Ben',
+                result: 'Thumbnail or MP4 link not available'
+            });
+        }
+
+        // کوتاه کردن لینک thumbnail و mp4 با TinyURL
+        const shortThumbnailLink = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(thumbnailLink)}`);
+        const shortMp4Link = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(mp4Link)}`);
 
         // ساختار JSON خروجی
-        const video = {
-            thumbnail: data.BK9.find((item) => item.type === 'jpg')?.url || 'No Thumbnail Available',
-            download_url: tinyUrls
+        const result = {
+            thumbnail: shortThumbnailLink.data || thumbnailLink,
+            download_url: shortMp4Link.data || mp4Link
         };
 
         res.setHeader('Content-Type', 'application/json');
         res.send(JSON.stringify({
             status: true,
             creator: 'Nothing-Ben',
-            result: video
+            result: result
         }, null, 3));
 
     } catch (err) {
