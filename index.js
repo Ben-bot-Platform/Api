@@ -110,7 +110,69 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         });
     }
 });
+// YT to MP4 Downloader API
+app.get('/api/downloader/ytmp4', async (req, res) => {
+    const videoUrl = req.query.url;
 
+    if (!videoUrl) {
+        return res.status(400).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'No YouTube video URL provided'
+        });
+    }
+
+    try {
+        // ارسال درخواست به API
+        const response = await axios.get(`https://api-pink-venom.vercel.app/api/ytdl?url=${encodeURIComponent(videoUrl)}`);
+        const data = response.data.response;
+
+        // بررسی داده‌های API
+        if (!data || !data.mp4) {
+            return res.status(500).json({
+                status: false,
+                creator: 'Nothing-Ben',
+                result: 'Error fetching MP4 download URL'
+            });
+        }
+
+        // کوتاه کردن لینک MP4
+        const tinyMp4UrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(data.mp4)}`);
+        const mp4DownloadUrl = tinyMp4UrlResponse.data || data.mp4;
+
+        // ساختار JSON خروجی
+        const video = {
+            type: "video",
+            quality: "480p", // کیفیت پیش‌فرض
+            title: data.title || 'No Title Available',
+            description: data.description || 'No Description Available',
+            duration: data.duration || 'Unknown',
+            views: data.views || 'Unknown',
+            channel: {
+                name: data.name || 'Unknown',
+                url: data.channel || 'No Channel URL Available'
+            },
+            url: videoUrl,
+            thumbnail: data.thumbnail || 'No Thumbnail Available',
+            download_url: mp4DownloadUrl // لینک کوتاه‌شده
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: [video]
+        }, null, 3));
+
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error processing request',
+            error: err.message
+        });
+    }
+});
 // YT to MP3 Downloader API
 app.get('/api/downloader/ytmp3', async (req, res) => {
     const videoUrl = req.query.url;
@@ -144,11 +206,11 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
         // ساختار JSON خروجی
         const video = {
             type: "audio",
+            quality: "320kbps",
             title: data.title || 'No Title Available',
             duration: data.duration || 'Unknown',
             thumbnail: data.thumbnail || 'No Thumbnail Available',
-            download_url: tinyUrl || data.mp3,
-            quality: "320kbps"
+            download_url: tinyUrl || data.mp3
         };
 
         res.setHeader('Content-Type', 'application/json');
@@ -167,6 +229,7 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
         });
     }
 });
+
 // QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
