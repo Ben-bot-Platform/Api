@@ -14,7 +14,6 @@ const port = process.env.PORT || 8080;
 
 // FONT TEXT API STYLE
 const fontStyles = {
-const fontStyles = {
     Bold: text => text.toUpperCase(),
     Italic: text => text.split('').map(c => c + '̶').join(''),
     Fancy: text => text.split('').map(c => '✦' + c + '✦').join('')
