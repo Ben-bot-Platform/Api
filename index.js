@@ -396,28 +396,28 @@ const port = process.env.PORT || 8080;
 const dailyLimit = 200; // حداکثر تعداد درخواست‌های روزانه
 const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
 
-const users = {}; // ذخیره داده‌های کاربران در حافظه موقت
+const users = {}; // ذخیره داده‌های کاربران بر اساس IP
 const validApiKeys = ['nothing-api', 'another-api']; // لیست `apikey`های معتبر
 
 // تابع برای مدیریت وضعیت درخواست‌های کاربران
-const checkUserLimit = (apikey) => {
-    // اگر این `apikey` برای اولین بار درخواست داده باشد، آن را در users اضافه می‌کند
-    if (!users[apikey]) {
-        users[apikey] = { used: 0, lastUsed: Date.now() };
+const checkUserLimit = (ip) => {
+    if (!users[ip]) {
+        users[ip] = { used: 0, lastUsed: Date.now() };
     }
 
-    // اگر بیشتر از یک روز از آخرین استفاده گذشته باشد، بازنشانی انجام می‌دهد
-    if (Date.now() - users[apikey].lastUsed > timeLimit) {
-        users[apikey].used = 0; // بازنشانی تعداد استفاده شده
-        users[apikey].lastUsed = Date.now(); // بروزرسانی زمان آخرین استفاده
+    // بازنشانی درخواست‌ها اگر بیشتر از یک روز گذشته باشد
+    if (Date.now() - users[ip].lastUsed > timeLimit) {
+        users[ip].used = 0;
+        users[ip].lastUsed = Date.now();
     }
 
-    return users[apikey];
+    return users[ip];
 };
 
 // مسیر بررسی وضعیت درخواست‌ها
 app.get('/api/checker', (req, res) => {
     const apikey = req.query.apikey;
+    const ip = req.ip; // دریافت IP کاربر
 
     // بررسی معتبر بودن `apikey`
     if (!apikey || !validApiKeys.includes(apikey)) {
@@ -427,9 +427,9 @@ app.get('/api/checker', (req, res) => {
         });
     }
 
-    const userStatus = checkUserLimit(apikey);
-    const remaining = dailyLimit - userStatus.used; // تعداد درخواست‌های باقیمانده
-    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed)); // زمان باقی‌مانده تا بازنشانی
+    const userStatus = checkUserLimit(ip);
+    const remaining = dailyLimit - userStatus.used;
+    const timeLeft = Math.max(0, timeLimit - (Date.now() - userStatus.lastUsed));
 
     res.json({
         status: true,
@@ -446,6 +446,7 @@ app.get('/api/checker', (req, res) => {
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const apikey = req.query.apikey;
     const query = req.query.text;
+    const ip = req.ip; // دریافت IP کاربر
 
     // بررسی معتبر بودن `apikey`
     if (!apikey || !validApiKeys.includes(apikey)) {
@@ -459,7 +460,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         return res.status(400).json({ status: false, message: 'No search query provided' });
     }
 
-    const userStatus = checkUserLimit(apikey);
+    const userStatus = checkUserLimit(ip);
 
     // بررسی محدودیت درخواست
     if (userStatus.used >= dailyLimit) {
@@ -478,8 +479,8 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     try {
         const results = await ytSearch(query);
         const videos = results.videos
-            .sort((a, b) => b.views - a.views) // ترتیب بر اساس تعداد بازدید
-            .slice(0, 3) // انتخاب 3 ویدئو برتر
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 3)
             .map(video => ({
                 type: "video",
                 videoId: video.videoId,
