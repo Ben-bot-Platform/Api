@@ -93,6 +93,50 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
         res.send(JSON.stringify(errorResponse, null, 4));
     }
 });
+
+// YT to MP3 Downloader API
+app.get('/api/downloader/ytmp3', async (req, res) => {
+    const videoUrl = req.query.url;
+
+    if (!videoUrl) {
+        return res.status(400).json({
+            status: false,
+            message: 'No YouTube video URL provided'
+        });
+    }
+
+    try {
+        // ارسال درخواست به YTMP3 API
+        const apiResponse = await axios.get(`https://api.vevioz.com/api/button/mp3?url=${encodeURIComponent(videoUrl)}`);
+        const downloadUrl = apiResponse.data?.button?.mp3;
+
+        if (!downloadUrl) {
+            throw new Error('Failed to fetch MP3 download URL');
+        }
+
+        // کوتاه کردن لینک با TinyURL
+        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(downloadUrl)}`);
+        const tinyUrl = tinyUrlResponse.data;
+
+        // بازگشت لینک کوتاه‌شده
+        return res.json({
+            status: true,
+            creator: 'Nothing-Ben',
+            result: {
+                original_url: videoUrl,
+                download_url: tinyUrl
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({
+            status: false,
+            creator: 'Nothing-Ben',
+            result: 'Error converting YouTube video to MP3',
+            error: err.message
+        });
+    }
+});
+
 //QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
@@ -114,7 +158,7 @@ app.get('/api/maker/qrcode', async (req, res) => {
             // بازگرداندن لینک کوتاه شده در پاسخ با فرمت JSON مرتب
             const jsonResponse = {
                 status: true,
-                creator: 'nothing',
+                creator: 'Nothing-Ben',
                 result: {
                     download_url: tinyUrl
                 }
@@ -130,15 +174,10 @@ app.get('/api/maker/qrcode', async (req, res) => {
         res.status(500).json({
             status: false,
             creator: 'Nothing-Ben',
-            result: 'Error generating QR code or shortening URL',
+            result: 'Error generating QR code',
             error: err.message
         });
     }
-});
-
-// ارائه فایل HTML
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // راه‌اندازی سرور
