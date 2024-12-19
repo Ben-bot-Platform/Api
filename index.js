@@ -229,12 +229,6 @@ app.get('/api/downloader/ytmp3', async (req, res) => {
         });
     }
 });
-
-const express = require('express');
-const axios = require('axios');
-const app = express();
-const port = process.env.PORT || 8080;
-
 // FBDL Video Downloader API
 app.get('/api/downloader/fbdl', async (req, res) => {
     const videoUrl = req.query.url;
