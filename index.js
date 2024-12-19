@@ -390,17 +390,32 @@ app.listen(port, () => {
 */
 const express = require('express');
 const ytSearch = require('yt-search');
+const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 8080;
 
 const dailyLimit = 200; // حداکثر تعداد درخواست‌های روزانه
 const timeLimit = 24 * 60 * 60 * 1000; // مدت زمان یک روز (میلی‌ثانیه)
-
-const users = {}; // ذخیره داده‌های کاربران بر اساس IP
+const userFile = './apikeyuser.json'; // فایل ذخیره‌سازی اطلاعات کاربران
 const validApiKeys = ['nothing-api', 'another-api']; // لیست `apikey`های معتبر
+
+// بارگذاری اطلاعات کاربران از فایل
+const loadUsers = () => {
+    if (!fs.existsSync(userFile)) {
+        fs.writeFileSync(userFile, JSON.stringify({}));
+    }
+    return JSON.parse(fs.readFileSync(userFile, 'utf-8'));
+};
+
+// ذخیره اطلاعات کاربران در فایل
+const saveUsers = (users) => {
+    fs.writeFileSync(userFile, JSON.stringify(users, null, 2));
+};
 
 // تابع برای مدیریت وضعیت درخواست‌های کاربران
 const checkUserLimit = (ip) => {
+    const users = loadUsers();
+
     if (!users[ip]) {
         users[ip] = { used: 0, lastUsed: Date.now() };
     }
@@ -411,6 +426,7 @@ const checkUserLimit = (ip) => {
         users[ip].lastUsed = Date.now();
     }
 
+    saveUsers(users); // ذخیره وضعیت به‌روز‌شده
     return users[ip];
 };
 
@@ -475,6 +491,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
 
     // افزایش تعداد درخواست‌ها
     userStatus.used += 1;
+    saveUsers(loadUsers()); // ذخیره وضعیت به‌روز‌شده
 
     try {
         const results = await ytSearch(query);
