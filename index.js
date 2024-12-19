@@ -12,14 +12,14 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 
-// تعریف فونت‌ها
+// FONT TEXT API STYLE
 const fontStyles = {
     Bold: text => text.toUpperCase(),
     Italic: text => text.split('').map(c => c + '̶').join(''),
     Fancy: text => text.split('').map(c => '✦' + c + '✦').join('')
 };
 
-// API: تبدیل متن به فونت
+// FONT TEXT API
 app.get('/api/maker/font-txt', (req, res) => {
     const text = req.query.text;
     if (!text) {
@@ -38,7 +38,7 @@ app.get('/api/maker/font-txt', (req, res) => {
     });
 });
 
-// API: جستجو در یوتیوب
+// SEARCH YOUTUBE API
 app.get('/api/downloader/ytsearch', async (req, res) => {
     const query = req.query.text;
     if (!query) {
@@ -71,6 +71,7 @@ app.get('/api/downloader/ytsearch', async (req, res) => {
     }
 });
 
+//QR CODE API
 app.get('/api/maker/qrcode', async (req, res) => {
     const text = req.query.text;
     if (!text) {
@@ -78,21 +79,35 @@ app.get('/api/maker/qrcode', async (req, res) => {
     }
 
     try {
-        // ساختن لینک برای API
+        // ساختن لینک برای API QR Code
         const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(text)}`;
 
-        // بازگرداندن لینک QR Code
-        res.json({
-            status: true,
-            creator: 'nothing',
-            result: {
-                download_url: apiUrl
-            }
-        });
+        // ارسال درخواست به TinyURL برای کوتاه کردن لینک
+        const tinyUrlResponse = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(apiUrl)}`);
+
+        // اگر درخواست به TinyURL موفقیت‌آمیز بود
+        if (tinyUrlResponse.data) {
+            const tinyUrl = tinyUrlResponse.data; // لینک کوتاه شده
+
+            // بازگرداندن لینک کوتاه شده در پاسخ با فرمت JSON مرتب
+            const jsonResponse = {
+                status: true,
+                creator: 'nothing',
+                result: {
+                    download_url: tinyUrl
+                }
+            };
+
+            res.setHeader('Content-Type', 'application/json');
+            res.send(JSON.stringify(jsonResponse, null, 4)); // فرمت JSON مرتب با فاصله 4
+        } else {
+            throw new Error('TinyURL API response error');
+        }
+
     } catch (err) {
         res.status(500).json({
             status: false,
-            message: 'Error generating QR code',
+            message: 'Error generating QR code or shortening URL',
             error: err.message
         });
     }
